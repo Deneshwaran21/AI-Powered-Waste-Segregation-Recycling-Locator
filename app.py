@@ -1,10 +1,13 @@
 import streamlit as st
-import requests
+import torch
+import torch.nn as nn
+from torchvision import transforms, models
 from PIL import Image
-import io
 import os
 
-
+# ==========================================
+# PAGE CONFIG
+# ==========================================
 st.set_page_config(
     page_title="AI Waste Sorter",
     page_icon="♻️",
@@ -12,7 +15,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-
+# ==========================================
+# CUSTOM CSS - MODERN DARK THEME
+# ==========================================
 st.markdown("""
 <style>
     /* Import Google Font */
@@ -210,9 +215,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-
+# ==========================================
 # HERO SECTION
-
+# ==========================================
 st.markdown('<div class="hero-title">♻️ AI Waste Sorter</div>', unsafe_allow_html=True)
 st.markdown("""
 <div class="hero-subtitle">
@@ -231,14 +236,63 @@ with col2:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
+# ==========================================
+# 1. LOAD THE AI MODEL (Integrated from api.py)
+# ==========================================
+@st.cache_resource
+def load_model():
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    # Rebuild the exact same architecture used in training
+    model = models.resnet50(weights=None)
+    num_features = model.fc.in_features
+    model.fc = nn.Sequential(
+        nn.Linear(num_features, 512),
+        nn.ReLU(),
+        nn.Dropout(0.5),
+        nn.Linear(512, 5)
+    )
+    
+    # Load the trained weights
+    model.load_state_dict(torch.load("waste_model.pth", map_location=device))
+    model = model.to(device)
+    model.eval()
+    return model, device
 
-# API ENDPOINT
+# Load the model (cached so it only runs once)
+model, device = load_model()
 
-API_URL = "http://localhost:8000/predict"
+# ==========================================
+# 2. CLASSES & RECYCLERS (Copied from api.py)
+# ==========================================
+CLASS_NAMES = ["cardboard_paper", "chips_packets", "metal_cans", "organic_kitchen", "plastic_bottles"]
 
+CLASS_EMOJIS = {
+    "cardboard_paper": "📦",
+    "chips_packets": "🍟",
+    "metal_cans": "🥫",
+    "organic_kitchen": "🍃",
+    "plastic_bottles": "🧴"
+}
 
-# MAIN LAYOUT: Upload + Results
+RECYCLERS = {
+    "cardboard_paper": [{"name": "PaperCycle Hub", "address": "12/B, Nehru Nagar", "distance": "3.1 km"}],
+    "chips_packets": [{"name": "GreenLayer Solutions", "address": "Shop 5, MG Road", "distance": "1.8 km"}],
+    "metal_cans": [{"name": "MetalMithra", "address": "G-7, Auto Nagar", "distance": "4.0 km"}],
+    "organic_kitchen": [{"name": "Compost Kings", "address": "Farm 23, Outer Ring Road", "distance": "5.2 km"}],
+    "plastic_bottles": [{"name": "EcoPlast Recyclers", "address": "Plot 42, Industrial Area", "distance": "2.3 km"}]
+}
 
+# Image preprocessing (must match training)
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+
+# ==========================================
+# 3. MAIN LAYOUT: Upload + Results
+# ==========================================
 left_col, right_col = st.columns([1, 1])
 
 with left_col:
@@ -275,95 +329,93 @@ with right_col:
         </div>
         """, unsafe_allow_html=True)
 
-
-# PREDICT BUTTON
-
+# ==========================================
+# 4. PREDICT BUTTON (Direct Inference - No API call)
+# ==========================================
 if uploaded_file is not None:
     if st.button("🔍 Identify & Find Recyclers", type="primary", use_container_width=True):
         with st.spinner("🧠 Analyzing with AI..."):
-            try:
-                # Send image to FastAPI
-                files = {"file": uploaded_file.getvalue()}
-                response = requests.post(API_URL, files=files)
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    
-                    class_name = result["class"]
-                    emoji = result["emoji"]
-                    confidence = result["confidence"]
-                    recyclers = result["recyclers"]
-                    
-                    # Display Results
-                    st.markdown("---")
-                    
-                    # Top row
-                    col1, col2, col3 = st.columns([1, 2, 1])
-                    
-                    with col1:
-                        st.markdown(f'<div class="result-emoji">{emoji}</div>', unsafe_allow_html=True)
-                    
-                    with col2:
-                        label = class_name.replace("_", " ").title()
-                        st.markdown(f'<div class="result-label">{label}</div>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="result-confidence">{confidence}%</div>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="result-confidence-label">Confidence Score</div>', unsafe_allow_html=True)
-                    
-                    with col3:
-                        if confidence >= 90:
-                            badge = "🟢 High Confidence"
-                            color = "#00f5a0"
-                        elif confidence >= 70:
-                            badge = "🟡 Medium Confidence"
-                            color = "#f5a623"
-                        else:
-                            badge = "🔴 Low Confidence"
-                            color = "#ef4444"
-                        
-                        st.markdown(f"""
-                        <div style="
-                            background: rgba(255,255,255,0.05);
-                            border-radius: 12px;
-                            padding: 1rem;
-                            text-align: center;
-                            border: 1px solid {color};
-                            margin-top: 0.5rem;
-                        ">
-                            <div style="color: {color}; font-weight: 700; font-size: 1.1rem;">{badge}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    # Progress bar
-                    st.progress(confidence / 100)
-                    
-                    # Recyclers
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.markdown("### 📍 Nearby Recycling Agents")
-                    
-                    if recyclers:
-                        for agent in recyclers:
-                            st.markdown(f"""
-                            <div class="recycler-card">
-                                <div class="recycler-name">🏢 {agent['name']}</div>
-                                <div class="recycler-address">📌 {agent['address']}</div>
-                                <div class="recycler-distance">📏 {agent['distance']} away</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                    else:
-                        st.warning("⚠️ No recycling agents found for this category in your area yet.")
-                    
-                    if confidence >= 90:
-                        st.balloons()
-                
+            # Preprocess the image
+            img_tensor = transform(image).unsqueeze(0).to(device)
+            
+            # Run inference
+            with torch.no_grad():
+                outputs = model(img_tensor)
+                probabilities = torch.nn.functional.softmax(outputs, dim=1)
+                confidence, predicted = torch.max(probabilities, 1)
+            
+            class_idx = predicted.item()
+            class_name = CLASS_NAMES[class_idx]
+            conf_score = round(confidence.item() * 100, 2)
+            
+            # Get recyclers
+            recyclers = RECYCLERS.get(class_name, [])
+            emoji = CLASS_EMOJIS.get(class_name, "♻️")
+            
+            # ========== DISPLAY RESULTS ==========
+            st.markdown("---")
+            
+            # Top row
+            col1, col2, col3 = st.columns([1, 2, 1])
+            
+            with col1:
+                st.markdown(f'<div class="result-emoji">{emoji}</div>', unsafe_allow_html=True)
+            
+            with col2:
+                label = class_name.replace("_", " ").title()
+                st.markdown(f'<div class="result-label">{label}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="result-confidence">{conf_score}%</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="result-confidence-label">Confidence Score</div>', unsafe_allow_html=True)
+            
+            with col3:
+                if conf_score >= 90:
+                    badge = "🟢 High Confidence"
+                    color = "#00f5a0"
+                elif conf_score >= 70:
+                    badge = "🟡 Medium Confidence"
+                    color = "#f5a623"
                 else:
-                    st.error(f"❌ API Error: {response.status_code}. Make sure `api.py` is running on port 8000.")
-                    
-            except requests.exceptions.ConnectionError:
-                st.error("❌ Could not connect to AI backend. Please run `python api.py` in a separate terminal.")
+                    badge = "🔴 Low Confidence"
+                    color = "#ef4444"
+                
+                st.markdown(f"""
+                <div style="
+                    background: rgba(255,255,255,0.05);
+                    border-radius: 12px;
+                    padding: 1rem;
+                    text-align: center;
+                    border: 1px solid {color};
+                    margin-top: 0.5rem;
+                ">
+                    <div style="color: {color}; font-weight: 700; font-size: 1.1rem;">{badge}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Progress bar
+            st.progress(conf_score / 100)
+            
+            # Recyclers
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("### 📍 Nearby Recycling Agents")
+            
+            if recyclers:
+                for agent in recyclers:
+                    st.markdown(f"""
+                    <div class="recycler-card">
+                        <div class="recycler-name">🏢 {agent['name']}</div>
+                        <div class="recycler-address">📌 {agent['address']}</div>
+                        <div class="recycler-distance">📏 {agent['distance']} away</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.warning("⚠️ No recycling agents found for this category in your area yet.")
+            
+            if conf_score >= 90:
+                st.balloons()
 
-
-# FOOTER
-
+# ==========================================
+# 5. FOOTER
+# ==========================================
 st.markdown("""
 <div class="footer">
     🌱 Built by <strong>Deneshwaran</strong>
