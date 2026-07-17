@@ -66,3 +66,69 @@ Open your terminal and run:
 ```bash
 git clone (https://github.com/Deneshwaran21/AI-Powered-Waste-Segregation-Recycling-Locator.git)
 cd ai-waste-sorter
+
+### 3. Create a Virtual Environment
+python -m venv venv
+
+Windows: venv\Scripts\activate
+Mac/Linux: source venv/bin/activate
+
+### 4. Install Dependencies
+pip install -r requirements.txt
+
+### 5. Download the AI Model
+The waste_model.pth file is large (~300MB). If it is not already in the root directory:
+Option A (Git LFS): Ensure Git LFS is installed and run git lfs pull.
+Option B (Manual): Download the file from the Releases or the link in the repository and place it in the root folder.
+
+### 6. Run the Application
+python -m streamlit run app.py
+
+The app will open automatically in your default browser at http://localhost:8501.
+
+### 📸 How to Use
+Open the app in your browser.
+
+Click the "Upload a photo of your waste" section.
+
+Select a .jpg, .jpeg, or .png image of your waste.
+
+Click the "🔍 Identify & Find Recyclers" button.
+
+The AI will display:
+
+The predicted waste category with a large emoji.
+
+A confidence score (0-100%).
+
+A list of nearby recycling agents that accept that specific material.
+
+If the confidence is high (≥90%), you'll see virtual celebration balloons! 🎈
+
+### AI Model Details
+Architecture: ResNet-50 (Pre-trained on ImageNet).
+
+Methodology: Transfer Learning.
+
+Convolutional base was frozen to retain general visual features.
+
+The final classifier head was replaced with a custom Sequential block.
+
+Dataset: 5 custom categories (plastic_bottles, chips_packets, cardboard_paper, metal_cans, organic_kitchen).
+
+Performance: Achieved 95.96% validation accuracy on a holdout test set.
+
+Optimization: Trained using the Adam optimizer with CrossEntropyLoss.
+
+
+---
+
+### 💡 Quick Instructions for You:
+
+1.  Copy the entire block of code above.
+2.  In your GitHub repository, click **"Add file"** → **"Create new file"**.
+3.  Name it `README.md`.
+4.  Paste the code.
+5.  Scroll down and click **"Commit new file"**.
+
+This README is comprehensive, professional, and will immediately impress anyone (including the judges) who visits your GitHub repo. 🚀♻️
