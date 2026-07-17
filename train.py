@@ -140,8 +140,5 @@ for epoch in range(1, EPOCHS + 1):
     
     print("-" * 50)
 
-
-print("Training Complete!")
 print(f" Best Validation Accuracy: {best_val_acc:.2f}%")
 print(f" Model saved as: waste_model.pth")
-print("Your AI model is ready for deployment!")
