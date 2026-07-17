@@ -5,9 +5,6 @@ from torchvision import transforms, models
 from PIL import Image
 import os
 
-# ==========================================
-# PAGE CONFIG
-# ==========================================
 st.set_page_config(
     page_title="AI Waste Sorter",
     page_icon="♻️",
@@ -15,9 +12,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ==========================================
-# CUSTOM CSS - MODERN DARK THEME
-# ==========================================
+
 st.markdown("""
 <style>
     /* Import Google Font */
@@ -215,9 +210,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ==========================================
 # HERO SECTION
-# ==========================================
+
 st.markdown('<div class="hero-title">♻️ AI Waste Sorter</div>', unsafe_allow_html=True)
 st.markdown("""
 <div class="hero-subtitle">
@@ -236,9 +230,9 @@ with col2:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ==========================================
-# 1. LOAD THE AI MODEL (Integrated from api.py)
-# ==========================================
+
+# LOAD THE AI MODEL
+
 @st.cache_resource
 def load_model():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -262,9 +256,9 @@ def load_model():
 # Load the model (cached so it only runs once)
 model, device = load_model()
 
-# ==========================================
-# 2. CLASSES & RECYCLERS (Copied from api.py)
-# ==========================================
+
+# CLASSES & RECYCLERS 
+
 CLASS_NAMES = ["cardboard_paper", "chips_packets", "metal_cans", "organic_kitchen", "plastic_bottles"]
 
 CLASS_EMOJIS = {
@@ -290,9 +284,8 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
-# ==========================================
-# 3. MAIN LAYOUT: Upload + Results
-# ==========================================
+# MAIN LAYOUT: Upload + Results
+
 left_col, right_col = st.columns([1, 1])
 
 with left_col:
@@ -329,9 +322,9 @@ with right_col:
         </div>
         """, unsafe_allow_html=True)
 
-# ==========================================
-# 4. PREDICT BUTTON (Direct Inference - No API call)
-# ==========================================
+
+# PREDICT BUTTON
+
 if uploaded_file is not None:
     if st.button("🔍 Identify & Find Recyclers", type="primary", use_container_width=True):
         with st.spinner("🧠 Analyzing with AI..."):
@@ -413,9 +406,6 @@ if uploaded_file is not None:
             if conf_score >= 90:
                 st.balloons()
 
-# ==========================================
-# 5. FOOTER
-# ==========================================
 st.markdown("""
 <div class="footer">
     🌱 Built by <strong>Deneshwaran</strong>
